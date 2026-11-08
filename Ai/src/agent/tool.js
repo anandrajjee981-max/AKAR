@@ -2,14 +2,22 @@ import * as z from "zod"
 import { tool } from "langchain"
 import axios from "axios"
 
-const getAgentBaseUrl = () =>
-    `http://${process.env.SANDBOX_ID ?? "61331ee5-d4d0-4a33-bbd8-e1e6064c230b"}.agent.localhost`
+const getAgentBaseUrl = () => {
+    if (process.env.SANDBOX_AGENT_URL) return process.env.SANDBOX_AGENT_URL
+
+    // Fall back to the local router, which proxies to the sandbox agent
+    return `http://localhost:3002`
+}
 
 const listfiles = tool(
-    async () => {
+    async ({},config) => {
+        const writer = config.writer;
+        writer("lstening files ......")
+        
         console.log("listfile started")
         try {
             const { data } = await axios.get(`${getAgentBaseUrl()}/list-files`)
+            writer("list file completed")
             return JSON.stringify(data)
         } catch (err) {
             return JSON.stringify(err.response?.data ?? { error: err.message })
@@ -23,7 +31,9 @@ const listfiles = tool(
 )
 
 const readfiles = tool(
-    async ({ filepath }) => {
+    async ({ filepath ,config}) => {
+        const writer = config.writer;
+        writer("readfile started .....")
         console.log("readfile started")
         try {
             const paths = Array.isArray(filepath)
@@ -32,6 +42,7 @@ const readfiles = tool(
             const { data } = await axios.get(`${getAgentBaseUrl()}/read-file`, {
                 params: { filepath: paths.join(",") },
             })
+            writer("readfile successfully .....")
             return JSON.stringify(data)
         } catch (err) {
             return JSON.stringify(err.response?.data ?? { error: err.message })
@@ -47,12 +58,15 @@ const readfiles = tool(
 )
 
 const updatefile = tool(
-    async ({ filepath, content }) => {
+    async ({ filepath, content ,config }) => {
+        const writer = config.writer
+        writer("updatefile started .....")
         console.log("updatefile started")
         try {
             const { data } = await axios.patch(`${getAgentBaseUrl()}/update-files`, {
                 files: [{ filepath, content }],
             })
+               writer("updatefile sucessfully .....")
             return JSON.stringify(data)
         } catch (err) {
             return JSON.stringify(err.response?.data ?? { error: err.message })

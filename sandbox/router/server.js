@@ -1,6 +1,10 @@
-import app from "./src/app.js";
+import http from "node:http";
+import app, { handleUpgrade } from "./src/app.js";
 
+const server = http.createServer(app);
+server.on("upgrade", handleUpgrade);
 
-app.listen(3000, () => {
-  console.log("Router is listening on port 3000");
+const port = process.env.PORT || 3003;
+server.listen(port, () => {
+  console.log(`Router is listening on port ${port}`);
 });

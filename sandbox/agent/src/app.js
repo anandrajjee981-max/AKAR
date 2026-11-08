@@ -2,14 +2,114 @@ import express from 'express'
 import morgan from 'morgan'
 import fs from 'fs'
 import path from 'path'
+import http from 'node:http'
+import pty from 'node-pty'
+import { Server } from 'socket.io'
 const app = express()
 app.use(express.json())
-const working_dir = '/workspace'
+app.use((req, res, next) => {
+    const origin = req.headers.origin;
+    if (origin) {
+        res.header('Access-Control-Allow-Origin', origin);
+        res.header('Access-Control-Allow-Credentials', 'true');
+    } else {
+        res.header('Access-Control-Allow-Origin', '*');
+    }
+    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PATCH, PUT, DELETE, OPTIONS, HEAD');
+    if (req.method === 'OPTIONS') {
+        return res.status(204).end();
+    }
+    next();
+})
+const working_dir = process.env.WORKSPACE_DIR || (process.platform === 'win32' ? process.cwd() : '/workspace')
 
 
 app.get("/agent/healthy",(req,res)=>{
     res.send("agent started")
 })
+const httpServer = http.createServer(app)
+const shell = process.platform === 'win32' ? 'powershell.exe' : 'bash';
+
+const io = new Server(httpServer, {
+    cors: {
+        origin: '*',
+        methods: ['GET', 'POST','PATCH'],
+    }
+});
+
+let ptyProcess;
+try {
+    ptyProcess = pty.spawn(shell, [], {
+        name: 'xterm-color',
+        cols: 80,
+        rows: 30,
+        cwd: working_dir,
+    });
+
+    ptyProcess.onData((data) => {
+        io.emit('terminal-output', data);
+        io.emit('output', data);
+    });
+
+    ptyProcess.onExit((data) => {
+        io.emit('exit', data);
+    });
+
+    ptyProcess.on('error', (err) => {
+        console.error('pty error:', err);
+        io.emit('terminal-error', { error: 'pty process error: ' + err.message });
+    });
+} catch (err) {
+    console.error('failed to spawn pty:', err);
+}
+
+io.on('connection', (socket) => {
+    console.log('Client connected');
+    socket.emit('terminal-ready');
+
+    socket.on('input', (data) => {
+        if (typeof data !== 'string') {
+            socket.emit('terminal-error', { error: 'Terminal input must be a string' });
+            return;
+        }
+        if (!ptyProcess) {
+            socket.emit('terminal-error', { error: 'Terminal not available' });
+            return;
+        }
+        ptyProcess.write(data);
+    });
+    socket.on('terminal-input', (data) => {
+        if (typeof data !== 'string') {
+            socket.emit('terminal-error', { error: 'Terminal input must be a string' });
+            return;
+        }
+        if (!ptyProcess) {
+            socket.emit('terminal-error', { error: 'Terminal not available' });
+            return;
+        }
+        ptyProcess.write(data);
+    });
+    socket.on('terminal-command', (command) => {
+        if (typeof command !== 'string') {
+            socket.emit('terminal-error', { error: 'Terminal command must be a string' });
+            return;
+        }
+        if (!ptyProcess) {
+            socket.emit('terminal-error', { error: 'Terminal not available' });
+            return;
+        }
+        ptyProcess.write(command.endsWith('\n') || command.endsWith('\r') ? command : `${command}\r`);
+    });
+    socket.on('disconnect', () => {
+        console.log('Client disconnected');
+    });
+
+}
+)
+
+
+
 /**
  * Lists all files and directories in the workspace. except node_modules , .git , dist 
  * 
@@ -175,40 +275,33 @@ return {
  * 
  * 
  */
-app.patch("/update-files",async(req,res)=>{
+const handleUpdateFiles = async(req,res)=>{
 try {
     const {files} = req.body
     console.log("received update files request")
-    
     console.log(files)
     if(!files || !Array.isArray(files))
         return res.status(400).json({error:"missing files"})
     if(files.some((file) => !file.filepath || file.content === undefined))
         return res.status(400).json({error:"missing filepath or content"})
-    
 
-    const result =  await Promise.all(files.map(async(file)=>{
+    const result = await Promise.all(files.map(async(file)=>{
         const filepath = path.join(working_dir,file.filepath)
         const content = file.content
         await fs.promises.mkdir(path.dirname(filepath), { recursive: true });
         await fs.promises.writeFile(filepath,content,"utf-8")
-    return {
-        [filepath]:"success"
-    }
-
-
-    }) )  
+        return {
+            [filepath]:"success"
+        }
+    }))
     res.status(200).json({result})
-
 } catch (error) {
     console.log(error)
     res.status(500).json({error:error.message})
 }
-})
+}
+app.patch("/update-files", handleUpdateFiles)
+app.post("/update-files", handleUpdateFiles)
 
 
-
-
-
-
-export default app
+export default httpServer

@@ -1,6 +1,17 @@
 import { k8sApi } from './config.js';
 
 
+const withTimeout = (promise, ms) => {
+    let timeoutId;
+    const timeout = new Promise((_, reject) => {
+        timeoutId = setTimeout(() => reject(new Error(`k8s operation timed out after ${ms}ms`)), ms);
+    });
+    return Promise.race([promise, timeout]).then(
+        (val) => { clearTimeout(timeoutId); return val; },
+        (err) => { clearTimeout(timeoutId); throw err; }
+    );
+};
+
 export const createpod = async (sandboxid, s3Bucket) => {
     const podmanifests = {
         metadata: {
@@ -142,7 +153,7 @@ export const createpod = async (sandboxid, s3Bucket) => {
     };
 
     try{
-            const res = await k8sApi.createNamespacedPod({ namespace: "default", body: podmanifests });
+            const res = await withTimeout(k8sApi.createNamespacedPod({ namespace: "default", body: podmanifests }), 15000);
             console.log("pod created successfully");
             return res;
 
@@ -158,7 +169,7 @@ export const createpod = async (sandboxid, s3Bucket) => {
 
     }
 
-export const waitForPodReady = async (name, namespace = "default", timeoutMs = 180000) => {
+export const waitForPodReady = async (name, namespace = "default", timeoutMs = 25000) => {
     const deadline = Date.now() + timeoutMs;
 
     while (Date.now() < deadline) {

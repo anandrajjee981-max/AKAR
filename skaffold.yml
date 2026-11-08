@@ -4,10 +4,8 @@ metadata:
   name: capstone
 
 build:
-  # Add this tagPolicy block to force custom or "latest" tags
   tagPolicy:
-    envTemplate:
-      template: "{{.IMAGE_NAME}}:latest"
+    sha256: {}
       
   artifacts:
   - image: sandbox
@@ -54,3 +52,20 @@ manifests:
     - k8s/ai-secret.yml
     - k8s/ai-deployment.yml
     - k8s/ai-service.yml
+
+portForward:
+- resourceType: service
+  resourceName: sandbox-service
+  port: 80
+  localPort: 8080
+  address: localhost
+- resourceType: service
+  resourceName: ai-service
+  port: 80
+  localPort: 8081
+  address: localhost
+- resourceType: service
+  resourceName: router-service
+  port: 80
+  localPort: 80
+  address: localhost

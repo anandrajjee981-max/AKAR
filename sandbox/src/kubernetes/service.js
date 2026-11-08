@@ -1,5 +1,16 @@
 import {k8sApi , k8sNetworking, k8sDiscovery} from './config.js';
 
+const withTimeout = (promise, ms) => {
+    let timeoutId;
+    const timeout = new Promise((_, reject) => {
+        timeoutId = setTimeout(() => reject(new Error(`k8s operation timed out after ${ms}ms`)), ms);
+    });
+    return Promise.race([promise, timeout]).then(
+        (val) => { clearTimeout(timeoutId); return val; },
+        (err) => { clearTimeout(timeoutId); throw err; }
+    );
+};
+
 export const createservice = async(sandboxid)=>{
     const servicebody = {
         metadata:{
@@ -31,7 +42,7 @@ export const createservice = async(sandboxid)=>{
     };
 
     try{
-        const res = await k8sApi.createNamespacedService({ namespace: "default", body: servicebody });
+        const res = await withTimeout(k8sApi.createNamespacedService({ namespace: "default", body: servicebody }), 15000);
         console.log("service created successfully");
         return res;
     }
@@ -42,7 +53,7 @@ export const createservice = async(sandboxid)=>{
 }
 
 
-export const waitForServiceReachable = async (serviceName, port = 3000, timeoutMs = 60000, namespace = "default") => {
+export const waitForServiceReachable = async (serviceName, port = 3000, timeoutMs = 20000, namespace = "default") => {
     const deadline = Date.now() + timeoutMs;
     let lastError = "no attempt made";
 

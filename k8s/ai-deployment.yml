@@ -20,17 +20,17 @@ spec:
           name: ai
           resources:
             requests:
-              cpu: "20m"
-              memory: "55M"
+              cpu: "100m"
+              memory: "128Mi"
             limits:
-              cpu: "50m"
-              memory: "100M"
+              cpu: "500m"
+              memory: "512Mi"
+          envFrom:
+            - secretRef:
+                name: ai-secret
           env:
-            - name: OPENROUTER_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: ai-secret
-                  key: openrouter_key
+            - name: PORT
+              value: "3000"
           livenessProbe:
             httpGet:
               path: /ai/health

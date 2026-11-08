@@ -41,6 +41,8 @@ spec:
         env:
         - name:  S3_BUCKET
           value:  cohort-capstone-329599656829-ap-southeast-1-an       
+        - name: PORT
+          value: "3000"
         ports:
         - containerPort:  3000
           name:  sandbox
