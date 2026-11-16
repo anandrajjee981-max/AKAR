@@ -202,6 +202,16 @@ export const waitForPodReady = async (name, namespace = "default", timeoutMs = 2
     throw new Error(`pod ${name} did not become ready within ${timeoutMs}ms`);
 }
 
+export const deletePod = async (name, namespace = "default") => {
+    try {
+        await withTimeout(k8sApi.deleteNamespacedPod({ name, namespace }), 15000);
+        console.log(`pod ${name} deleted successfully`);
+    }
+    catch (err) {
+        console.log(`pod ${name} deletion failed`, err);
+        throw err;
+    }
+}
 
 
 

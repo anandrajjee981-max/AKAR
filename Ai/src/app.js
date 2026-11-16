@@ -1,6 +1,8 @@
 import express from "express"
+
 const app = express()
 app.use(express.json())
+
 
 // Allow browser requests from the Vite dev server and any localhost origin
 app.use((req, res, next) => {

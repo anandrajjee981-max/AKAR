@@ -60,6 +60,16 @@ spec:
             port:
               number: 80
 
+      - pathType: Prefix
+        path: /auth/health
+        backend:
+          service:
+            name: auth-service
+            port:
+              number: 80
+              
+
+
 
   - host: "*.preview.localhost"
     http:

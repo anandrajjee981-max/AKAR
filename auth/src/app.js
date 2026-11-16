@@ -5,6 +5,7 @@ import dotenv from 'dotenv';
 import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
 import cookie from 'cookie-parser';
 import router from './routes/user.routes.js';
+  
 dotenv.config();
 import passport from 'passport';
 const app = express();
@@ -21,6 +22,10 @@ passport.use(new GoogleStrategy({
     return done(null, profile);
 }));    
 
+
+app.get('/auth/health', (req, res) => {
+    res.status(200).json({ status: 'ok' });
+});
 app.use("/auth", router)
 
 

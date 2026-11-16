@@ -41,6 +41,11 @@ build:
     docker:
       dockerfile: dockerfile
 
+  - image: auth
+    context: auth
+    docker:
+      dockerfile: dockerfile
+
 manifests:
   rawYaml:
     - k8s/sandbox-deployment.yml
@@ -49,9 +54,12 @@ manifests:
     - k8s/router-service.yml
     - k8s/ingress.yml
     - k8s/rbac.yaml
-    - k8s/ai-secret.yml
+    - k8s/ai-secret.local.yaml
     - k8s/ai-deployment.yml
     - k8s/ai-service.yml
+    - k8s/auth-deployment.yml
+    - k8s/auth-service.yml
+    - k8s/secrets.yaml
 
 portForward:
 - resourceType: service

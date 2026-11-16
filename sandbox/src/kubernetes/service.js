@@ -155,3 +155,18 @@ catch(err){
 }
 
 }
+
+export const deleteservice = async(sandboxid)=>{
+    try{
+        const res = await withTimeout(k8sApi.deleteNamespacedService(`sandbox-service-${sandboxid}`, "default"), 15000);
+        console.log("service deleted successfully");
+        return res;
+    }
+    catch(err){
+        console.log("service deletion failed", err);
+        throw err;
+    }
+}
+
+
+

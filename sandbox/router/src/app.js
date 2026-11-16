@@ -1,6 +1,7 @@
 import express from 'express'
 import cors from 'cors'
 import { createProxyServer } from 'httpxy'
+import {refreshSandboxTTL} from './config/redis.js'
 
 const app = express()
 
@@ -51,15 +52,18 @@ export function getTarget(req) {
 app.use(async (req, res, next) => {
   try {
     const target = getTarget(req)
+    await refreshSandboxTTL(target.split('sandbox-service-')[1].split(':')[0])
     await proxy.web(req, res, { target })
   } catch (err) {
     next(err)
   }
 })
 
-export function handleUpgrade(req, socket, head) {
+export async function handleUpgrade(req, socket, head) {
   try {
     const target = getTarget(req)
+    await refreshSandboxTTL(target.split('sandbox-service-')[1].split(':')[0])
+
     proxy.ws(req, socket, { target }, head)
   } catch (err) {
     console.error('[Router Upgrade Error]:', err?.message || err)

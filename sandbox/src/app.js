@@ -5,6 +5,7 @@ import { ensureK8s } from './kubernetes/config.js';
 import {createpod, waitForPodReady} from './kubernetes/pod.js';
 import {createservice, waitForServiceReachable} from './kubernetes/service.js';
 import morgan from 'morgan';
+import { createSandboxTTL } from './service/redis.js';
 app.get('/api/sandbox/health', (req,res)=>{
     res.status(200).json({message: 'ok'})
 })
@@ -22,7 +23,7 @@ app.post('/api/sandbox/create', async(req,res)=>{
         // Wait for readiness best-effort; don't fail creation if it takes longer
         try { await waitForPodReady(`sandbox-pod-${sandboxid}`); } catch (e) { console.warn("pod not yet ready:", e.message); }
         try { await waitForServiceReachable(`sandbox-service-${sandboxid}`); } catch (e) { console.warn("service not yet reachable:", e.message); }
-
+        try { await createSandboxTTL(sandboxid); } catch (e) { console.warn("failed to set sandbox TTL in redis:", e.message); }
         res.status(200).json({
             message: 'sandbox created successfully',
             "sandboxid": sandboxid ,

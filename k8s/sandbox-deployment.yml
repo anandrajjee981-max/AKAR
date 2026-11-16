@@ -38,6 +38,9 @@ spec:
             port: 3000
           initialDelaySeconds: 30
           timeoutSeconds: 10
+        envFrom:
+        - secretRef:
+            name: auth-secret
         env:
         - name:  S3_BUCKET
           value:  cohort-capstone-329599656829-ap-southeast-1-an       
