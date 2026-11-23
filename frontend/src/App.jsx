@@ -15,10 +15,17 @@ import {
   updateFilesApi, 
   createFileApi, 
   generateAiCodeApi,
-  getDefaultEndpoints 
+  getDefaultEndpoints,
+  getStoredUser,
+  storeAuthToken,
+  logoutUser,
+  extractTokenFromUrl
 } from './services/api';
 
 export default function App() {
+  // Authentication State
+  const [authUser, setAuthUser] = useState(() => getStoredUser());
+
   // Sandbox State
   const [sandboxId, setSandboxId] = useState(() => localStorage.getItem('akr_sandbox_id') || '');
   const [isCreatingSandbox, setIsCreatingSandbox] = useState(false);
@@ -84,6 +91,29 @@ export default function App() {
   const dismissToast = (id) => {
     setToasts(prev => prev.filter(t => t.id !== id));
   };
+
+  // Google OAuth Lifecycle: detect token on redirect and sync auth state
+  useEffect(() => {
+    const token = extractTokenFromUrl();
+    if (token) {
+      const user = storeAuthToken(token);
+      if (user) {
+        setAuthUser(user);
+        addToast(`Welcome back, ${user.name}!`, 'success', 'Google Authenticated');
+      } else {
+        addToast('Failed to verify token payload', 'error', 'Auth Error');
+      }
+    } else {
+      const existingUser = getStoredUser();
+      setAuthUser(existingUser);
+    }
+  }, [addToast]);
+
+  const handleLogout = useCallback(() => {
+    logoutUser();
+    setAuthUser(null);
+    addToast('You have been signed out.', 'info', 'Signed Out');
+  }, [addToast]);
 
   // Persist state in localStorage and keep endpoints strictly in sync with sandboxId
   useEffect(() => {
@@ -373,6 +403,8 @@ export default function App() {
           sandboxId={sandboxId}
           onEnterWorkspace={() => setViewMode('workspace')}
           onOpenSettings={() => setIsConfigOpen(true)}
+          authUser={authUser}
+          onLogout={handleLogout}
         />
       ) : (
         /* 2. AKR CLAUDE CODE WORKSPACE & AI PANEL VIEW */
@@ -394,6 +426,8 @@ export default function App() {
             onSaveFile={handleSaveFile}
             isSaving={isSavingFile}
             onBackToDashboard={() => setViewMode('dashboard')}
+            authUser={authUser}
+            onLogout={handleLogout}
           />
 
           {/* Main 3-Column Workspace */}

@@ -24,6 +24,7 @@ import {
   Radio,
   Play
 } from 'lucide-react';
+import GoogleAuthButton from './GoogleAuthButton';
 
 const TEMPLATES = [
   {
@@ -169,7 +170,9 @@ export default function AkrDashboard({
   isCreating,
   sandboxId,
   onEnterWorkspace,
-  onOpenSettings
+  onOpenSettings,
+  authUser,
+  onLogout
 }) {
   const heroRef = useRef(null);
   const titleRef = useRef(null);
@@ -277,6 +280,9 @@ export default function AkrDashboard({
             </motion.button>
           )}
 
+          {/* Google Sign In / User Profile */}
+          <GoogleAuthButton user={authUser} onLogout={onLogout} />
+
           <button
             onClick={onOpenSettings}
             className="text-xs text-zinc-400 hover:text-zinc-200 px-3 py-1.5 rounded-lg border border-zinc-800 hover:border-zinc-700 transition cursor-pointer"
@@ -311,9 +317,30 @@ export default function AkrDashboard({
         </div>
 
         {/* Hero Subtitle */}
-        <p ref={subtitleRef} className="text-zinc-400 text-sm sm:text-base text-center max-w-2xl mb-8 leading-relaxed font-sans">
+        <p ref={subtitleRef} className="text-zinc-400 text-sm sm:text-base text-center max-w-2xl mb-6 leading-relaxed font-sans">
           One-click containerized sandbox environments with virtualized PTY shell, intelligent AI code streaming, live browser preview, and file system synchronization.
         </p>
+
+        {/* Authentication Callout Banner */}
+        {authUser ? (
+          <motion.div
+            initial={{ opacity: 0, y: -5 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="inline-flex items-center space-x-2 bg-emerald-500/10 border border-emerald-500/30 px-3.5 py-1.5 rounded-full text-xs text-emerald-300 mb-6 font-mono"
+          >
+            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+            <span>Welcome back, <strong className="text-white font-sans">{authUser.name}</strong> ({authUser.email})</span>
+          </motion.div>
+        ) : (
+          <motion.div
+            initial={{ opacity: 0, y: -5 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="inline-flex items-center space-x-3 bg-zinc-900/90 border border-zinc-800 px-4 py-2 rounded-2xl text-xs text-zinc-300 mb-6 shadow-md backdrop-blur-sm"
+          >
+            <span className="text-zinc-400">Sign in with Google to sync your pods and receive login alerts:</span>
+            <GoogleAuthButton user={authUser} onLogout={onLogout} compact={true} />
+          </motion.div>
+        )}
 
         {/* Live Metrics Ticker Bar */}
         <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-8 py-2.5 px-6 rounded-2xl bg-zinc-950/80 border border-zinc-800/90 mb-10 text-xs font-mono shadow-inner">

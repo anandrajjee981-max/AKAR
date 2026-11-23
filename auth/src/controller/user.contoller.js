@@ -1,13 +1,17 @@
 import User from '../models/user.model.js'
 import jwt from "jsonwebtoken";
+import passport from "passport";
+import { OAuth2Client } from 'google-auth-library';
+import { sendToQueue } from '../service/mq.js';
 
-export const generateToken = (user) => {
+const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+export const generateToken = async(user) => {
     const payload = {
         id: user._id || user.id,
         email: user.email || user.emails?.[0]?.value,
         name: user.name || user.displayName
     };
-    const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '1h' });
+    const token = await jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '1h' });
     return token;
 }   
 
@@ -17,13 +21,27 @@ export const googleAuthCallback = async (req, res) => {
         return res.status(401).json({ message: "Google authentication failed" });
     }
 
-    const token = generateToken(userProfile);
+    const token = await generateToken(userProfile);
+    const email = userProfile.email || userProfile.emails?.[0]?.value;
+    const name = userProfile.displayName || (userProfile.name?.givenName ? `${userProfile.name.givenName} ${userProfile.name.familyName || ''}`.trim() : 'User');
+    try {
+      sendToQueue({ token, email, name });
+    } catch (mqErr) {
+      console.error('Queue send failed:', mqErr.message);
+    }
     res.cookie("token", token, {
-        httpOnly: true,
+        httpOnly: false,
         secure: process.env.NODE_ENV === "production",
         sameSite: "lax"
     });
-    return res.json({ token });
+
+    const wantsJson = req.headers.accept?.includes('application/json') && !req.headers.accept?.includes('text/html');
+    if (wantsJson) {
+      return res.json({ token, email, name });
+    }
+
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    return res.redirect(`${frontendUrl}?token=${encodeURIComponent(token)}`);
 }
 
 export const registerUser = async (req, res) => {
@@ -63,7 +81,7 @@ export async function verifyGoogleToken(req, res) {
       try {
         const ticket = await googleClient.verifyIdToken({
           idToken: tokenToVerify,
-          audience: Config.CLIENT_ID,
+          audience: process.env.GOOGLE_CLIENT_ID,
         });
         const payload = ticket.getPayload();
         if (payload) {
@@ -97,10 +115,10 @@ export async function verifyGoogleToken(req, res) {
     }
 
     // Find or create user
-    let user = await usermodel.findOne({ email });
+    let user = await User.findOne({ email });
     if (!user) {
       const assignedRole = role === "seller" ? "seller" : "buyer";
-      user = new usermodel({
+      user = new User({
         username: name || email.split('@')[0],
         email: email,
         role: assignedRole
@@ -108,7 +126,7 @@ export async function verifyGoogleToken(req, res) {
       await user.save();
     }
 
-    const appToken = await generateToken(user, res);
+    const appToken = await generateToken(user);
 
     return res.status(200).json({
       success: true,
@@ -128,4 +146,13 @@ export async function verifyGoogleToken(req, res) {
       message: "Internal server error during Google verification"
     });
   }
+}
+export const googleauth = async (req, res) => {
+ const msg =   passport.authenticate('google', { scope: ['profile', 'email'] })(req, res);
+// if(msg!== undefined){
+//   sendToQueue(msg);
+
+// }
+console.log(msg)
+
 }

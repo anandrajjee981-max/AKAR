@@ -4,14 +4,22 @@ import axios from 'axios';
  * Creates a configured axios client.
  */
 export const createApiClient = (baseURL = '') => {
+  const token = typeof window !== 'undefined' ? localStorage.getItem('akr_auth_token') : null;
+  const headers = {
+    'Content-Type': 'application/json',
+  };
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
   return axios.create({
     baseURL: baseURL || '',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers,
     timeout: 90000,
   });
 };
+
+export * from './auth';
+
 
 /**
  * Helper to determine default URLs based on environment and sandbox ID

@@ -15,6 +15,7 @@ import {
   Zap,
   Radio
 } from 'lucide-react';
+import GoogleAuthButton from './GoogleAuthButton';
 
 export default function Header({
   sandboxId,
@@ -31,7 +32,9 @@ export default function Header({
   isDirty,
   onSaveFile,
   isSaving,
-  onBackToDashboard
+  onBackToDashboard,
+  authUser,
+  onLogout
 }) {
   return (
     <header className="h-14 bg-[#09090c] border-b border-zinc-800/90 px-4 flex items-center justify-between select-none z-20 shrink-0 font-mono">
@@ -159,6 +162,9 @@ export default function Header({
           <span>Preview</span>
           <ExternalLink className="w-3 h-3 text-amber-400" />
         </motion.button>
+
+        {/* Google Authentication */}
+        <GoogleAuthButton user={authUser} onLogout={onLogout} compact={true} />
 
         {/* Settings Button */}
         <button
